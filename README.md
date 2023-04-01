@@ -1,23 +1,34 @@
 # journalctl2psql
 Simple tool to forward systemd journal to postgresql
+QT development packages are required to build
 
-Compile as standalone:
+Standalone:
 
-mkdir Build; cd Build
-qmake ../journalctl2psql.pro
-make
+-- compile --
 
-Run:
-Update config according to your needs from deb-build/build/etc/journalctl2psql.json
-./journalctl2psql your-config.json
+    mkdir Build; cd Build
+    qmake ../journalctl2psql.pro
+    make
 
+-- run --
 
-Build as package:
-mkdir Build; cd Build
-qmake ../all.pro
-make
+    Update config according to your needs from deb-build/build/etc/journalctl2psql.json
+    ./journalctl2psql your-config.json
+//Standalone
 
-install package journalctl2psql-ARCH-VERSION.deb
-systemctl enable journalctl2psql
-EDIT /etc/journalctl2psql.json
-systemctl start journalctl2psql
+Package:
+
+-- compile --
+
+    mkdir Build; cd Build
+    qmake ../all.pro
+    make
+
+-- install and run --
+
+    install package journalctl2psql-ARCH-VERSION.deb
+    systemctl enable journalctl2psql
+    EDIT /etc/journalctl2psql.json
+    systemctl start journalctl2psql
+
+//Package
