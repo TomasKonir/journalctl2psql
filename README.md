@@ -1,5 +1,6 @@
 # journalctl2psql
 Simple tool to forward systemd journal to postgresql
+
 QT development packages are required to build
 
 Standalone:
