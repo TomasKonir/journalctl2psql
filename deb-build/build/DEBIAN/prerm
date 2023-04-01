@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if [ "$1" != "upgrade" ]; then
+	systemctl stop journalctl2psql
+	systemctl disable journalctl2psql
+fi

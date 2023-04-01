@@ -1,0 +1,10 @@
+#!/bin/bash
+
+systemctl daemon-reload
+
+echo RESTARTING SERVICES
+if [ "$(systemctl is-enabled journalctl2psql)" == "enabled" ]; then
+	echo "starting journalctl2psql"
+	systemctl start journalctl2psql
+fi
+

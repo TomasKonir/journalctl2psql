@@ -1,0 +1,11 @@
+Package: journalctl2psql
+Version: #VERSION#
+Priority: optional
+Architecture: #ARCH#
+Section: net
+Homepage: https://github.com/TomasKonir/journalctl2psql
+Installed-Size: #SIZE#
+Maintainer: Tomas Konir
+Description: Simple forwarder from systemd journal to postgresql DB
+Source: none
+Depends: #DEPENDS#
