@@ -104,27 +104,11 @@ int main(int argc, char **argv){
         qInfo() << "Unable to connect to database ... sleep 10s, than exit" ;
         QThread::sleep(10);
         return(1);
-    }
-
-    if(!db.tables().contains("journal")){
-        db.exec("CREATE TABLE journal("
-                "id BIGSERIAL NOT NULL UNIQUE,"
-                "time TIMESTAMP NOT NULL,"
-                "hostname VARCHAR NOT NULL,"
-                "cursor VARCHAR NOT NULL,"
-                "identifier VARCHAR NOT NULL,"
-                "facility INT NOT NULL,"
-                "priority INT NOT NULL,"
-                "pid BIGINT NOT NULL,"
-                "unit VARCHAR NOT NULL,"
-                "message VARCHAR,"
-                "fields JSONB)");
-        db.exec("CREATE INDEX journal_base_idx ON journal(hostname,time,cursor)");
-    }
+    }    
 
     QStringList journalctlParams({"-f","-o","json"});
     QSqlQuery lastLogQuery(db);
-    lastLogQuery.prepare("SELECT cursor FROM journal WHERE hostname=:hostname ORDER BY id DESC LIMIT 1");
+    lastLogQuery.prepare("SELECT cursor FROM last_cursor WHERE hostname=:hostname");
     lastLogQuery.addBindValue(hostname);
     doQuery(lastLogQuery);
     if(lastLogQuery.next()){
@@ -143,7 +127,7 @@ int main(int argc, char **argv){
 
     qInfo() << "Journalctl started with args:" << journalctlParams.join(" ");
     QSqlQuery insertQuery(db);
-    insertQuery.prepare("INSERT INTO journal(time,hostname,cursor,identifier,facility,priority,pid,unit,message,fields) VALUES(TO_TIMESTAMP(:time),:hostname,:cursor,:identifier,:facility,:priority,:pid,:unit,:message,:fields)");
+    insertQuery.prepare("SELECT FROM journal_insert(TO_TIMESTAMP(:time)::TIMESTAMP WITHOUT TIME ZONE,:hostname,:unit,:identifier,:facility,:priority,:pid,:message,:fields,:cursor)");
 
     int inserts = 0;
     QElapsedTimer et; et.start();
@@ -194,16 +178,16 @@ int main(int argc, char **argv){
                 continue;
             }
 
-            insertQuery.addBindValue(time);
-            insertQuery.addBindValue(hostname);
-            insertQuery.addBindValue(cursor);
-            insertQuery.addBindValue(identifier);
-            insertQuery.addBindValue(facility);
-            insertQuery.addBindValue(priority);
-            insertQuery.addBindValue(pid);
-            insertQuery.addBindValue(unit);
-            insertQuery.addBindValue(message);
-            insertQuery.addBindValue(fields);
+            insertQuery.bindValue(":time",time);
+            insertQuery.bindValue(":hostname",hostname);
+            insertQuery.bindValue(":unit",unit);
+            insertQuery.bindValue(":identifier",identifier);
+            insertQuery.bindValue(":facility",facility);
+            insertQuery.bindValue(":priority",priority);
+            insertQuery.bindValue(":pid",pid);
+            insertQuery.bindValue(":message",message);
+            insertQuery.bindValue(":fields",fields);
+            insertQuery.bindValue(":cursor",cursor);
             doQuery(insertQuery);
             if(inserts++ > 1000 || et.elapsed() > 10000){
                 db.commit();
