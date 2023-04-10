@@ -189,7 +189,7 @@ int main(int argc, char **argv){
             insertQuery.bindValue(":fields",fields);
             insertQuery.bindValue(":cursor",cursor);
             doQuery(insertQuery);
-            if(inserts++ > 1000 || et.elapsed() > 10000){
+            if(inserts++ > 1000 || et.elapsed() > 1000){
                 db.commit();
                 db.transaction();
                 inserts = 0;

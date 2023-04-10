@@ -9,4 +9,6 @@ if [ $? -ne 0 ]; then
 	cat ../libs.txt | while read n; do dpkg-query -S $n; done | sed 's/^\([^:]\+\):.*$/\1/' | sort | uniq | tr "\n" "," | sed "s/,$//" >../deps.txt
 fi
 
+
 cat ../deps.txt
+echo -en ,libqt5sql5-psql

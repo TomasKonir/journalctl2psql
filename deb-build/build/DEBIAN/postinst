@@ -5,6 +5,11 @@ systemctl daemon-reload
 echo RESTARTING SERVICES
 if [ "$(systemctl is-enabled journalctl2psql)" == "enabled" ]; then
 	echo "starting journalctl2psql"
-	systemctl start journalctl2psql
+	systemctl restart journalctl2psql
+fi
+
+if [ "$(systemctl is-enabled journalctl2psql-remote)" == "enabled" ]; then
+	echo "starting journalctl2psql-remote"
+	systemctl restart journalctl2psql-remote
 fi
 
