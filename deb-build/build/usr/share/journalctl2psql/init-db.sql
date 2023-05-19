@@ -42,9 +42,10 @@ CREATE TABLE journal(
 	fields JSONB
 );
 CREATE INDEX journal_hostname_idx ON journal(hostname_id);
-CREATE INDEX journal_unit_idx ON journal(hostname_id);
-CREATE INDEX journal_identifier_idx ON journal(hostname_id);
+CREATE INDEX journal_unit_idx ON journal(unit_id);
+CREATE INDEX journal_identifier_idx ON journal(identifier_id);
 CREATE INDEX journal_time_idx ON journal(time);
+CREATE INDEX journal_hostname_unit_idx ON journal(hostname_id,unit_id,time);
 
 CREATE OR REPLACE FUNCTION unaccent_immutable(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS
 $$
