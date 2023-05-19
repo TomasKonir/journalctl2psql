@@ -130,14 +130,20 @@ int main(int argc, char **argv){
     insertQuery.prepare("SELECT FROM journal_insert(TO_TIMESTAMP(:time)::TIMESTAMP WITHOUT TIME ZONE,:hostname,:unit,:identifier,:facility,:priority,:pid,:message,:fields,:cursor)");
 
     int inserts = 0;
+    bool inTransaction = false;
     QElapsedTimer et; et.start();
-    db.transaction();
     while(true){
         if(ctrl_c){
             db.commit();
             break;
         }
         journalctl.waitForReadyRead(100);
+        if(inserts > 1000 || (et.elapsed() > 1000 && inTransaction)){
+            db.commit();
+            inTransaction = false;
+            inserts = 0;
+            et.restart();
+        }
         while(journalctl.canReadLine()){
             QJsonObject o = QJsonDocument::fromJson(journalctl.readLine()).object();
             if(o.isEmpty()){
@@ -188,13 +194,12 @@ int main(int argc, char **argv){
             insertQuery.bindValue(":message",message);
             insertQuery.bindValue(":fields",fields);
             insertQuery.bindValue(":cursor",cursor);
-            doQuery(insertQuery);
-            if(inserts++ > 1000 || et.elapsed() > 1000){
-                db.commit();
+            if(!inTransaction){
                 db.transaction();
-                inserts = 0;
-                et.restart();
+                inTransaction = true;
             }
+            doQuery(insertQuery);
+            inserts++;
         }
         journalctl.readAllStandardError();
         if(journalctl.state() != QProcess::Running){

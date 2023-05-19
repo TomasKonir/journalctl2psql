@@ -51,7 +51,7 @@ CREATE OR REPLACE FUNCTION unaccent_immutable(text) RETURNS text LANGUAGE sql IM
 $$
 	SELECT public.unaccent('public.unaccent', $1)
 $$;
-CREATE INDEX journal_message_idx ON journal USING GIST (unaccent_immutable(lower(message)) gist_trgm_ops);
+CREATE INDEX journal_message_idx ON journal USING GIN (unaccent_immutable(lower(message)) gin_trgm_ops);
 
 DROP FUNCTION IF EXISTS journal_insert(timestamp without time zone,character varying,character varying,character varying,integer,integer,bigint,character varying,jsonb,character varying);
 CREATE OR REPLACE FUNCTION journal_insert(t TIMESTAMP, p_hostname VARCHAR, p_unit VARCHAR, p_identifier VARCHAR, facility INT, priority INT, pid BIGINT, message VARCHAR, fields JSONB, p_cursor VARCHAR) RETURNS BIGINT LANGUAGE PLPGSQL SECURITY DEFINER
