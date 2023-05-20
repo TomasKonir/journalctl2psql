@@ -70,7 +70,7 @@
         }
         echo json_encode($row);
     }
-    echo "]\n";
+    echo "\n]\n";
     pg_free_result($data);
     pg_close($db);
 ?>

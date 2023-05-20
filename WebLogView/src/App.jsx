@@ -144,6 +144,7 @@ export default class App extends React.Component {
         this.reloadData = this.reloadData.bind(this)
         this.scrollToEnd = this.scrollToEnd.bind(this)
         this.timerReload = this.timerReload.bind(this)
+        this.dataReceived = this.dataReceived.bind(this)
     }
 
     componentDidMount() {
@@ -190,34 +191,38 @@ export default class App extends React.Component {
             params.lastId = this.state.data[0].id
         } else {
             this.setState({ data: [] })
+            this.setState({ waiting: true })
         }
-        this.setState({ needReload: false })
-        this.setState({ waiting: true })
-        fetch('api/data.php?filter=' + JSON.stringify(params)).then(
-            (response) => {
-                this.setState({ waiting: false })
-                if (this.state.autoRefresh) {
-                    setTimeout(this.timerReload, 2000)
+        if(this.state.needReload){
+            this.setState({ needReload: false })
+        }
+        fetch('api/data.php?filter=' + JSON.stringify(params)).then(this.dataReceived)
+    }
+
+    async dataReceived(response) {
+        let json = await response.json()
+        if(json === undefined || json === null){
+            return
+        }
+        if (this.state.autoRefresh && this.state.data.length > 0) {
+            if (json.length > 0) {
+                json.push(...this.state.data)
+                if (json.length > this.state.currentLimit.value) {
+                    json.splice(this.state.currentLimit.value, json.length - this.state.currentLimit.value)
                 }
-                response.json().then(
-                    (json) => {
-                        if (this.state.autoRefresh && this.state.data.length > 0) {
-                            if (json.length) {
-                                json.push(...this.state.data)
-                                if (json.length > this.state.currentLimit.value) {
-                                    json.splice(0, json.length - this.state.currentLimit.value)
-                                }
-                                this.setState({ data: json })
-                                this.scolltoEndNeeded = true
-                            }
-                        } else {
-                            this.scolltoEndNeeded = true
-                            this.setState({ data: json })
-                        }
-                    }
-                )
+                this.setState({ data: json })
+                this.scolltoEndNeeded = true
             }
-        )
+        } else {
+            this.scolltoEndNeeded = true
+            this.setState({ data: json })
+        }
+        if(this.state.waiting){
+            this.setState({ waiting: false })
+        }
+        if (this.state.autoRefresh) {
+            setTimeout(this.timerReload, 2000)
+        }
     }
 
     fetchList(name) {
@@ -248,6 +253,21 @@ export default class App extends React.Component {
         let pageEnd = (this.state.currentPage + 1) * pageSize
         let count = 0
         let i = 0
+        let filterList = []
+        let regexList = []
+        if (this.state.filter.length > 0) {
+            let tmpList = this.state.filter.toLocaleLowerCase().split(' ')
+            for(let i in tmpList){
+                let s = tmpList[i];
+                if(s.toLocaleLowerCase().startsWith('/') && (s.endsWith('/') && s.length > 2)){
+                    s = s.slice(1,s.length)
+                    s = s.slice(0,s.length - 1)
+                    regexList.push(new RegExp(s))
+                } else {
+                    filterList.push(s)
+                }
+            }
+        }
         while (i < this.state.data.length) {
             let d = this.state.data[i]
             let row = []
@@ -275,8 +295,7 @@ export default class App extends React.Component {
                 header = <tr key='head'>{header}</tr>
             }
             i++
-            if (this.state.filter.length > 0) {
-                let filterList = this.state.filter.toLocaleLowerCase().split(' ')
+            if (filterList.length > 0 || regexList.length > 0) {
                 let filterFound = true
                 text = text.toLocaleLowerCase()
                 for (let f in filterList) {
@@ -292,6 +311,12 @@ export default class App extends React.Component {
                             filterFound = false
                             break
                         }
+                    }
+                }
+                for(let i in regexList){
+                    let r = regexList[i]
+                    if(!r.test(text)){
+                        filterFound = false
                     }
                 }
                 if (!filterFound) {
@@ -318,6 +343,7 @@ export default class App extends React.Component {
                     size='small'
                     variant='filled'
                     label='Filter'
+                    placeholder='STRING or -STRING or /RegExp/'
                     value={this.state.filter}
                     fired={(v) => {
                         this.setState({ filter: v })
@@ -347,6 +373,7 @@ export default class App extends React.Component {
                     size='small'
                     variant='filled'
                     label='Filter'
+                    placeholder='STRING or -STRING or /RegExp/'
                     value={this.state.filter}
                     fired={(v) => {
                         this.setState({ filter: v })

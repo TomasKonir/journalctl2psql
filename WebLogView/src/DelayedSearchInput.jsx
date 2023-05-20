@@ -43,6 +43,7 @@ class DelayedSearchInput extends React.Component {
                     size='small'
                     type="search"
                     variant={this.props.variant}
+                    placeholder={this.props.placeholder}
                     className='width-max'
                     value={this.state.filter}
                     label={this.props.label}
