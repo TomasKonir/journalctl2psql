@@ -162,8 +162,8 @@ export default class App extends React.Component {
         this.forceUpdate()
     }
 
-    timerReload(){
-        if(this.state.autoRefresh){
+    timerReload() {
+        if (this.state.autoRefresh) {
             this.reloadData()
         }
     }
@@ -385,8 +385,9 @@ export default class App extends React.Component {
                                 <div className='flex-row'>
                                     <Checkbox title='tail -f' checked={this.state.autoRefresh} onClick={() => {
                                         let ar = !this.state.autoRefresh
-                                        this.setState({ autoRefresh: ar, data: [], currentPage: 0 })
+                                        this.setState({ autoRefresh: ar })
                                         if (ar) {
+                                            this.setState({ data: [], currentPage: 0 })
                                             setTimeout(this.timerReload, 50)
                                         }
                                     }} />
