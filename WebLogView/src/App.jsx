@@ -133,7 +133,6 @@ export default class App extends React.Component {
             from: from,
             to: to,
             autoRefresh: false,
-            interval: undefined,
             filter: '',
             data: [],
             needReload: false,
@@ -143,7 +142,6 @@ export default class App extends React.Component {
         this.fetchList = this.fetchList.bind(this)
         this.reload = this.reload.bind(this)
         this.reloadData = this.reloadData.bind(this)
-        this.elapsed = this.elapsed.bind(this)
         this.scrollToEnd = this.scrollToEnd.bind(this)
     }
 
@@ -152,25 +150,15 @@ export default class App extends React.Component {
         this.fetchList('units')
         this.fetchList('identifiers')
         window.addEventListener('resize', this.reload)
-        this.setState({ interval: setInterval(this.elapsed, 1000) })
-        this.reloadData() //REMOVE AFTER FINAL
+        this.reloadData()
     }
 
     componentWillUnmount() {
         window.removeEventListener('resize', this.reload)
-        if (this.state.interval) {
-            clearInterval(this.state.interval)
-        }
     }
 
     reload() {
         this.forceUpdate()
-    }
-
-    elapsed() {
-        if (this.state.autoRefresh) {
-            this.reloadData()
-        }
     }
 
     reloadData() {
@@ -200,7 +188,10 @@ export default class App extends React.Component {
         this.setState({ waiting: true })
         fetch('api/data.php?filter=' + JSON.stringify(params)).then(
             (response) => {
-                this.setState({waiting : false})
+                this.setState({ waiting: false })
+                if (this.state.autoRefresh) {
+                    setTimeout(this.reloadData, 2000)
+                }
                 response.json().then(
                     (json) => {
                         if (this.state.autoRefresh && this.state.data.length > 0) {
@@ -386,8 +377,11 @@ export default class App extends React.Component {
                             <div className={'menu-' + orientation + red}>
                                 <div className='flex-row'>
                                     <Checkbox title='tail -f' checked={this.state.autoRefresh} onClick={() => {
-                                        this.setState({ autoRefresh: !this.state.autoRefresh, data: [], currentPage: 0 })
-                                        setTimeout(this.reloadData, 50)
+                                        let ar = !this.state.autoRefresh
+                                        this.setState({ autoRefresh: ar, data: [], currentPage: 0 })
+                                        if (ar) {
+                                            setTimeout(this.reloadData, 50)
+                                        }
                                     }} />
                                     {orientation === 'vertical' ? <div className='flex-grow' /> : ''}
                                     <div className='centered nowrap'>{this.state.data.length} / {count}</div>
@@ -398,7 +392,7 @@ export default class App extends React.Component {
                                         disabled={this.state.autoRefresh}
                                         onClick={this.reloadData}
                                     >
-                                        {this.state.waiting ? <img src='waiting.svg' alt='waiting' style={{width : '1.5rem'}}/> : <ReplayIcon />}
+                                        {this.state.waiting ? <img src='waiting.svg' alt='waiting' style={{ width: '1.5rem' }} /> : <ReplayIcon />}
                                     </IconButton>
                                 </div>
                                 <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.from} onAccept={(v) => this.setState({ from: v, needReload: true })} />
