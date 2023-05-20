@@ -381,8 +381,8 @@ export default class App extends React.Component {
                 <ThemeProvider theme={theme}>
                     <LocalizationProvider dateAdapter={AdapterDayjs} locale='cs'>
                         <Paper className={'main-' + orientation} square>
-                            <div className={'menu-' + orientation + red}>
-                                <div className='flex-row'>
+                            <div className={'menu-' + orientation}>
+                                <div className={'flex-row rounded' + red}>
                                     <Checkbox title='tail -f' checked={this.state.autoRefresh} onClick={() => {
                                         let ar = !this.state.autoRefresh
                                         this.setState({ autoRefresh: ar })

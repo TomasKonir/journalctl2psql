@@ -37,31 +37,17 @@ class DelayedSearchInput extends React.Component {
     }
 
     render() {
-        let style = {
-            ...this.props.style,
-            position: 'relative'
-        }
-        let variant
-        if (this.props.variant) {
-            variant = this.props.variant
-        } else {
-            variant = 'outlined'
-            style.paddingTop = '0.5rem'
-            style.height = '3rem'
-        }
         return (
-            <div className="flex-row width-max margin-bottom-025rem" style={style}>
                 <TextField
                     fullWidth
                     size='small'
                     type="search"
-                    variant={variant}
+                    variant={this.props.variant}
                     className='width-max'
                     value={this.state.filter}
                     label={this.props.label}
                     onChange={this.changed}
                 />
-            </div>
         )
     }
 }

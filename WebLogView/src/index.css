@@ -129,6 +129,10 @@ tr:hover {
     margin: auto;
 }
 
+.rounded {
+    border-radius: 0.25rem;
+}
+
 .nowrap {
     white-space: nowrap;
 }

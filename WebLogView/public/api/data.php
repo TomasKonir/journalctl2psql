@@ -1,6 +1,5 @@
 <?php
 	require("db.php");
-    $ret = array();
     $filterElements = array();
     $filter = json_decode($_GET["filter"], true);
 
@@ -32,7 +31,7 @@
         array_push($filterElements, "unaccent_immutable(lower(message::text)) LIKE unaccent_immutable(lower('%" . $filter["filter"] . "%'))");
     }
 
-    if ($filter["lastId"] > 0) {
+    if (isset($filter["lastId"]) && $filter["lastId"] > 0) {
         array_push($filterElements, "journal.id > ".$filter["lastId"]);
     }
 
@@ -44,7 +43,7 @@
         $where = "WHERE ".implode(" AND ",$filterElements)." ";
     }
 
-    $limit = "LIMIT 262144";
+    $limit = '';
     if($filter["limit"] > 0){
         $limit = "LIMIT ".$filter["limit"];
     }
@@ -52,6 +51,8 @@
     $query = "SELECT journal.id,time,hostname,unit,identifier,pid,message FROM journal LEFT JOIN hostname ON hostname.id=hostname_id LEFT JOIN unit ON unit.id=unit_id LEFT JOIN identifier ON identifier.id=identifier_id " . $where . " ORDER BY time DESC,journal.id DESC ".$limit;
     //error_log($query);
     $data = pg_query($db, $query);
+    $first = true;
+    echo "[\n";
     while ($line = pg_fetch_array($data, null, PGSQL_NUM)) {
         $row = array();
         $row["id"] = intval($line[0]);
@@ -61,11 +62,15 @@
         $row["identifier"] = strval($line[4]);
         $row["pid"] = strval($line[5]);
         $row["message"] = strval($line[6]);
-        array_push($ret,$row);
+        if($first){
+            echo "\n";
+            $first = false;
+        } else {
+            echo ",\n";
+        }
+        echo json_encode($row);
     }
+    echo "]\n";
     pg_free_result($data);
     pg_close($db);
-
-    echo json_encode($ret);
-    echo "\n"    ;
 ?>
