@@ -1,0 +1,142 @@
+.root {
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    top: 0;
+    left: 0;
+    position: absolute;
+}
+
+.main-horizontal {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.menu-horizontal {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    padding-top: 0.5rem;
+}
+
+.divider-horizontal {
+    width: 100%;
+    height: 2px;
+    background-color: gray;
+}
+
+.main-vertical {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+.menu-vertical {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    padding-top: 0.5rem;
+    min-width: 16rem;
+}
+
+.divider-vertical {
+    width: 2px;
+    height: 100%;
+    background-color: gray;
+}
+
+.content {
+    height: 100%;
+    overflow: auto;
+    flex-grow: 1;
+}
+
+table {
+    /*    border-collapse: collapse;*/
+    width: 100%;
+    position: relative;
+}
+
+td {
+    border-right: 1px solid gray;
+    border-top: 0px;
+    border-bottom: 0px;
+    padding-right: 0.25rem;
+    padding-left: 0.25rem;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    white-space: nowrap;
+    vertical-align: top;
+}
+
+th {
+    background-color: black;
+    position: sticky;
+    top: 0; /* required for sticky*/
+    -webkit-box-shadow: 0px 2px 0px 0px gray;
+    -moz-box-shadow: 0px 2px 0px 0px gray;
+    box-shadow: 0px 2px 0px 0px gray;
+    padding: 0;
+}
+
+tr {
+    -webkit-box-shadow: 0px 2px 0px 0px gray;
+    -moz-box-shadow: 0px 2px 0px 0px gray;
+    box-shadow: 0px 2px 0px 0px gray;
+}
+
+tr:hover {
+    background-color: gray;
+}
+
+.message {
+    white-space: break-spaces;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.count {
+    margin: auto;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    white-space: nowrap;
+    display: flex;
+}
+
+.centered {
+    margin: auto;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+.gray {
+    background-color: #303030;
+}
+
+.red {
+    background-color: #660000;
+}
