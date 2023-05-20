@@ -143,6 +143,7 @@ export default class App extends React.Component {
         this.reload = this.reload.bind(this)
         this.reloadData = this.reloadData.bind(this)
         this.scrollToEnd = this.scrollToEnd.bind(this)
+        this.timerReload = this.timerReload.bind(this)
     }
 
     componentDidMount() {
@@ -159,6 +160,12 @@ export default class App extends React.Component {
 
     reload() {
         this.forceUpdate()
+    }
+
+    timerReload(){
+        if(this.state.autoRefresh){
+            this.reloadData()
+        }
     }
 
     reloadData() {
@@ -190,7 +197,7 @@ export default class App extends React.Component {
             (response) => {
                 this.setState({ waiting: false })
                 if (this.state.autoRefresh) {
-                    setTimeout(this.reloadData, 2000)
+                    setTimeout(this.timerReload, 2000)
                 }
                 response.json().then(
                     (json) => {
@@ -380,7 +387,7 @@ export default class App extends React.Component {
                                         let ar = !this.state.autoRefresh
                                         this.setState({ autoRefresh: ar, data: [], currentPage: 0 })
                                         if (ar) {
-                                            setTimeout(this.reloadData, 50)
+                                            setTimeout(this.timerReload, 50)
                                         }
                                     }} />
                                     {orientation === 'vertical' ? <div className='flex-grow' /> : ''}
