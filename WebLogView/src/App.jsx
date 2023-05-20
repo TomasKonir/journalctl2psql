@@ -204,6 +204,23 @@ export default class App extends React.Component {
         if(json === undefined || json === null){
             return
         }
+        for(let i in json){
+            let d = json[i]
+            let text = ''
+            for (let p in d) {
+                if (p === 'id') {
+                    continue
+                }
+                let val = d[p]
+                if (p === 'time') {
+                    val = formatDateTime(val)
+                }
+                text += ' ' + val
+                d[p] = val
+            }
+            d.text = text.toLocaleLowerCase()
+            json[i] = d
+        }
         if (this.state.autoRefresh && this.state.data.length > 0) {
             if (json.length > 0) {
                 json.push(...this.state.data)
@@ -272,24 +289,19 @@ export default class App extends React.Component {
             let d = this.state.data[i]
             let row = []
             let insertHeader = header.length === 0
-            let text = ''
             for (let p in d) {
-                if (p === 'id') {
+                if (p === 'id' || p ==='text') {
                     continue
                 }
                 if (insertHeader) {
                     header.push(<th key={p}>{p}</th>)
                 }
                 let val = d[p]
-                if (p === 'time') {
-                    val = formatDateTime(val)
-                }
                 if (p === 'message') {
                     row.push(<td key={p} className='message'>{val}</td>)
                 } else {
                     row.push(<td key={p}>{val}</td>)
                 }
-                text += ' ' + val
             }
             if (insertHeader) {
                 header = <tr key='head'>{header}</tr>
@@ -297,7 +309,7 @@ export default class App extends React.Component {
             i++
             if (filterList.length > 0 || regexList.length > 0) {
                 let filterFound = true
-                text = text.toLocaleLowerCase()
+                let text = d.text
                 for (let f in filterList) {
                     f = filterList[f]
                     if (f.startsWith('-')) {
