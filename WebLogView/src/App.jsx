@@ -204,7 +204,7 @@ export default class App extends React.Component {
                         if (this.state.autoRefresh && this.state.data.length > 0) {
                             if (json.length) {
                                 json.push(...this.state.data)
-                                if (json.length > (this.state.currentLimit.value * 2)) {
+                                if (json.length > this.state.currentLimit.value) {
                                     json.splice(0, json.length - this.state.currentLimit.value)
                                 }
                                 this.setState({ data: json })
