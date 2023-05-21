@@ -23,4 +23,13 @@ function init() {
 
 window.onload = () => {
     init()
+    if (window.navigator && navigator.serviceWorker) {
+        if (window.location.hostname !== 'localhost') {
+            navigator.serviceWorker.register('worker.js').then(
+                function (registration) {
+                    console.info("worker registered")
+                }
+            )
+        }
+    }
 }

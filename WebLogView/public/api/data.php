@@ -27,7 +27,7 @@
         array_push($filterElements, "identifier_id IN (" . implode(",", $identifiers) . ")");
     }
 
-    if ($filter["filter"] != "") {
+    if (isset($filter["filter"]) && $filter["filter"] != "") {
         array_push($filterElements, "unaccent_immutable(lower(message::text)) LIKE unaccent_immutable(lower('%" . $filter["filter"] . "%'))");
     }
 
@@ -48,7 +48,7 @@
         $limit = "LIMIT ".$filter["limit"];
     }
 
-    $query = "SELECT journal.id,time,hostname,unit,identifier,pid,message FROM journal LEFT JOIN hostname ON hostname.id=hostname_id LEFT JOIN unit ON unit.id=unit_id LEFT JOIN identifier ON identifier.id=identifier_id " . $where . " ORDER BY time DESC,journal.id DESC ".$limit;
+    $query = "SELECT journal.id,time,hostname,unit,identifier,message FROM journal LEFT JOIN hostname ON hostname.id=hostname_id LEFT JOIN unit ON unit.id=unit_id LEFT JOIN identifier ON identifier.id=identifier_id " . $where . " ORDER BY time DESC,journal.id DESC ".$limit;
     //error_log($query);
     $data = pg_query($db, $query);
     $first = true;
@@ -60,8 +60,7 @@
         $row["host"] = strval($line[2]);
         $row["unit"] = strval($line[3]);
         $row["identifier"] = strval($line[4]);
-        $row["pid"] = strval($line[5]);
-        $row["message"] = strval($line[6]);
+        $row["message"] = strval($line[5]);
         if($first){
             echo "\n";
             $first = false;

@@ -11,6 +11,10 @@ import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft'
 import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft'
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import FullscreenIcon from '@mui/icons-material/Fullscreen'
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
 import DateTimeInput from './DateTimeInput'
 import DelayedSearchInput from './DelayedSearchInput'
@@ -92,7 +96,11 @@ export function formatDateTime(ts) {
     return (ret)
 }
 
+var isMobileResult
 export function isMobile() {
+    if (isMobileResult !== undefined) {
+        return isMobileResult
+    }
     var check = false;
     (function (a) {
         if (
@@ -105,14 +113,13 @@ export function isMobile() {
         )
             check = true
     })(navigator.userAgent || navigator.vendor || window.opera)
+    isMobileResult = check
     return check
 }
 
-export default class App extends React.Component {
+class MainMenu extends React.Component {
     constructor(props) {
         super(props)
-        this.tableRef = React.createRef()
-        this.scolltoEndNeeded = false
         let from = new Date()
         let to = new Date()
         from.setSeconds(0)
@@ -122,6 +129,10 @@ export default class App extends React.Component {
         to.setMinutes(59)
         to.setHours(23)
         this.state = {
+            autoRefresh: false,
+            waiting: false,
+            from: from,
+            to: to,
             hosts: [],
             units: [],
             identifiers: [],
@@ -129,38 +140,54 @@ export default class App extends React.Component {
             currentUnit: [],
             currentIdentifier: [],
             currentLimit: { name: "1024", value: 1024 },
-            loadFilter: '',
-            from: from,
-            to: to,
-            autoRefresh: false,
-            filter: '',
-            data: [],
-            needReload: false,
-            currentPage: 0,
-            waiting: false,
+            filterVisible: true,
         }
         this.fetchList = this.fetchList.bind(this)
-        this.reload = this.reload.bind(this)
         this.reloadData = this.reloadData.bind(this)
-        this.scrollToEnd = this.scrollToEnd.bind(this)
         this.timerReload = this.timerReload.bind(this)
         this.dataReceived = this.dataReceived.bind(this)
+        this.fullscreenClicked = this.fullscreenClicked.bind(this)
+
     }
 
     componentDidMount() {
         this.fetchList('hosts')
         this.fetchList('units')
         this.fetchList('identifiers')
-        window.addEventListener('resize', this.reload)
         this.reloadData()
     }
 
-    componentWillUnmount() {
-        window.removeEventListener('resize', this.reload)
+    fullscreenClicked() {
+        var elem = document.documentElement
+        if (this.state.fullscreen) {
+            if (document.exitFullscreen) {
+                document.exitFullscreen()
+            } else if (document.webkitExitFullscreen) { /* Safari */
+                document.webkitExitFullscreen()
+            }
+            this.setState({ fullscreen: false })
+        } else {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen()
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen()
+            }
+            this.setState({ fullscreen: true })
+        }
     }
 
-    reload() {
-        this.forceUpdate()
+    fetchList(name) {
+        fetch('api/' + name + '.php').then(
+            (response) => {
+                response.json().then(
+                    (json) => {
+                        let set = {}
+                        set[name] = json
+                        this.setState(set)
+                    }
+                )
+            }
+        )
     }
 
     timerReload() {
@@ -187,13 +214,13 @@ export default class App extends React.Component {
         params.to = this.state.to
         params.limit = this.state.currentLimit.value
         params.filter = this.state.loadFilter
-        if (this.state.autoRefresh && this.state.data.length > 0) {
-            params.lastId = this.state.data[0].id
+        if (this.state.autoRefresh && this.props.lastId > 0) {
+            params.lastId = this.props.lastId
         } else {
-            this.setState({ data: [] })
+            this.props.clearData()
             this.setState({ waiting: true })
         }
-        if(this.state.needReload){
+        if (this.state.needReload) {
             this.setState({ needReload: false })
         }
         fetch('api/data.php?filter=' + JSON.stringify(params)).then(this.dataReceived)
@@ -201,10 +228,226 @@ export default class App extends React.Component {
 
     async dataReceived(response) {
         let json = await response.json()
-        if(json === undefined || json === null){
+        if (this.state.waiting) {
+            this.setState({ waiting: false })
+        }
+        if (this.state.autoRefresh) {
+            setTimeout(this.timerReload, 2000)
+        }
+        if (json === undefined || json === null) {
             return
         }
-        for(let i in json){
+        this.props.dataReceived(json, this.state.autoRefresh, this.state.currentLimit.value)
+    }
+
+
+    render() {
+        let red = ''
+        if (this.state.needReload) {
+            red = ' red'
+        }
+        let expandButton
+        if (isMobile()) {
+            expandButton = <IconButton size='small' onClick={() => this.setState({ filterVisible: !this.state.filterVisible })}>
+                {this.state.filterVisible ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+        }
+        let reloadDiv = <div className={'flex-row rounded' + red}>
+            <Checkbox title='tail -f' checked={this.state.autoRefresh} onClick={() => {
+                let ar = !this.state.autoRefresh
+                this.setState({ autoRefresh: ar })
+                if (ar) {
+                    this.setState({currentPage: 0 })
+                    this.props.clearData()
+                    setTimeout(this.timerReload, 50)
+                }
+            }} />
+            {expandButton}
+            {this.props.pager}
+            <IconButton
+                title='reload'
+                size='small'
+                disabled={this.state.autoRefresh}
+                onClick={this.reloadData}
+            >
+                {this.state.waiting ? <img src='waiting.svg' alt='waiting' style={{ width: '1.5rem' }} /> : <ReplayIcon />}
+            </IconButton>
+            <IconButton
+                size="small"
+                onClick={this.fullscreenClicked}
+            >
+                {this.state.fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
+        </div>
+        let hostDiv = <Autocomplete
+            key='host'
+            fullWidth
+            multiple
+            size='small'
+            options={this.state.hosts}
+            disabled={this.state.autoRefresh}
+            getOptionLabel={option => option.hostname}
+            value={this.state.currentHost}
+            renderInput={(params) => (
+                <TextField
+                    {...params}
+                    label='Host'
+                    InputProps={{
+                        ...params.InputProps,
+                    }}
+                />
+            )}
+            onChange={(event, value) => this.setState({ currentHost: value, needReload: true })}
+        />
+        let unitDiv = <Autocomplete
+            key='unit'
+            fullWidth
+            multiple
+            size='small'
+            disabled={this.state.autoRefresh}
+            options={this.state.units}
+            getOptionLabel={option => option.unit}
+            value={this.state.currentUnit}
+            renderInput={(params) => (
+                <TextField
+                    {...params}
+                    label='Unit'
+                    InputProps={{
+                        ...params.InputProps,
+                    }}
+                />
+            )}
+            onChange={(event, value) => this.setState({ currentUnit: value, needReload: true })}
+        />
+        let identDiv = <Autocomplete
+            key='ident'
+            fullWidth
+            multiple
+            size='small'
+            disabled={this.state.autoRefresh}
+            options={this.state.identifiers}
+            getOptionLabel={option => option.identifier}
+            value={this.state.currentIdentifier}
+            renderInput={(params) => (
+                <TextField
+                    {...params}
+                    label='Identifiers'
+                    InputProps={{
+                        ...params.InputProps,
+                    }}
+                />
+            )}
+            onChange={(event, value) => this.setState({ currentIdentifier: value, needReload: true })}
+        />
+        let limitDiv = <Autocomplete
+            key='limit'
+            fullWidth
+            size='small'
+            disabled={this.state.autoRefresh}
+            options={limitOptions}
+            getOptionLabel={option => option.name}
+            isOptionEqualToValue={(option, value) => (option.value === value.value)}
+            value={this.state.currentLimit}
+            renderInput={(params) => (
+                <TextField
+                    {...params}
+                    label='Limit'
+                    InputProps={{
+                        ...params.InputProps,
+                    }}
+                />
+            )}
+            onChange={(event, value) => this.setState({ currentLimit: value, needReload: true })}
+        />
+        let filterDiv = <TextField
+            key='filter'
+            fullWidth
+            size='small'
+            disabled={this.state.autoRefresh}
+            variant='outlined'
+            label='Filter'
+            value={this.state.loadFilter}
+            onChange={(ev) => {
+                this.setState({ loadFilter: ev.target.value, needReload: true })
+            }}
+        />
+        if (isMobile()) {
+            let content = []
+            if (this.state.filterVisible) {
+                content.push(
+                    <div key='time' className='flex-row width-100'>
+                        <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.from} onAccept={(v) => this.setState({ from: v, needReload: true })} />
+                        <div className='spacer' />
+                        <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.to} onAccept={(v) => this.setState({ to: v, needReload: true })} />
+                    </div>
+                )
+                content.push(hostDiv)
+                content.push(unitDiv)
+                content.push(identDiv)
+                content.push(limitDiv)
+                content.push(filterDiv)
+            }
+            return (
+                <div className='flex-column width-100'>
+                    {reloadDiv}
+                    {content}
+                </div>
+            )
+        } else {
+            return (
+                <React.Fragment>
+                    {reloadDiv}
+                    <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.from} onAccept={(v) => this.setState({ from: v, needReload: true })} />
+                    <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.to} onAccept={(v) => this.setState({ to: v, needReload: true })} />
+                    {hostDiv}
+                    {unitDiv}
+                    {identDiv}
+                    {limitDiv}
+                    {filterDiv}
+                </React.Fragment>
+            )
+        }
+    }
+}
+
+export default class App extends React.Component {
+    constructor(props) {
+        super(props)
+        this.tableRef = React.createRef()
+        this.scolltoEndNeeded = false
+        this.state = {
+            loadFilter: '',
+            filter: '',
+            data: [],
+            needReload: false,
+            currentPage: 0,
+            fullscreen: false,
+        }
+
+        this.reload = this.reload.bind(this)
+        this.clearData = this.clearData.bind(this)
+        this.dataReceived = this.dataReceived.bind(this)
+        this.scrollToEnd = this.scrollToEnd.bind(this)
+    }
+
+    componentDidMount() {
+        window.addEventListener('resize', this.reload)
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('resize', this.reload)
+    }
+
+    reload() {
+        this.forceUpdate()
+    }
+
+    clearData(){
+        this.setState({ data: [] })
+    }
+
+    dataReceived(json, autoRefresh, currentLimit) {
+        for (let i in json) {
             let d = json[i]
             let text = ''
             for (let p in d) {
@@ -221,11 +464,11 @@ export default class App extends React.Component {
             d.text = text.toLocaleLowerCase()
             json[i] = d
         }
-        if (this.state.autoRefresh && this.state.data.length > 0) {
+        if (autoRefresh && this.state.data.length > 0) {
             if (json.length > 0) {
                 json.push(...this.state.data)
-                if (json.length > this.state.currentLimit.value) {
-                    json.splice(this.state.currentLimit.value, json.length - this.state.currentLimit.value)
+                if (json.length > currentLimit) {
+                    json.splice(currentLimit, json.length - currentLimit)
                 }
                 this.setState({ data: json })
                 this.scolltoEndNeeded = true
@@ -234,26 +477,6 @@ export default class App extends React.Component {
             this.scolltoEndNeeded = true
             this.setState({ data: json })
         }
-        if(this.state.waiting){
-            this.setState({ waiting: false })
-        }
-        if (this.state.autoRefresh) {
-            setTimeout(this.timerReload, 2000)
-        }
-    }
-
-    fetchList(name) {
-        fetch('api/' + name + '.php').then(
-            (response) => {
-                response.json().then(
-                    (json) => {
-                        let set = {}
-                        set[name] = json
-                        this.setState(set)
-                    }
-                )
-            }
-        )
     }
 
     scrollToEnd() {
@@ -274,11 +497,11 @@ export default class App extends React.Component {
         let regexList = []
         if (this.state.filter.length > 0) {
             let tmpList = this.state.filter.toLocaleLowerCase().split(' ')
-            for(let i in tmpList){
-                let s = tmpList[i];
-                if(s.toLocaleLowerCase().startsWith('/') && (s.endsWith('/') && s.length > 2)){
-                    s = s.slice(1,s.length)
-                    s = s.slice(0,s.length - 1)
+            for (let i in tmpList) {
+                let s = tmpList[i]
+                if (s.toLocaleLowerCase().startsWith('/') && (s.endsWith('/') && s.length > 2)) {
+                    s = s.slice(1, s.length)
+                    s = s.slice(0, s.length - 1)
                     regexList.push(new RegExp(s))
                 } else {
                     filterList.push(s)
@@ -288,9 +511,14 @@ export default class App extends React.Component {
         while (i < this.state.data.length) {
             let d = this.state.data[i]
             let row = []
-            let insertHeader = header.length === 0
+            let insertHeader = header.length === 0 && !isMobile()
+            let messageRow
+            let trClassName
+            if ((count % 2) === 0) {
+                trClassName = 'tr-even'
+            }
             for (let p in d) {
-                if (p === 'id' || p ==='text') {
+                if (p === 'id' || p === 'text') {
                     continue
                 }
                 if (insertHeader) {
@@ -298,7 +526,11 @@ export default class App extends React.Component {
                 }
                 let val = d[p]
                 if (p === 'message') {
-                    row.push(<td key={p} className='message'>{val}</td>)
+                    if (isMobile()) {
+                        messageRow = <tr key={d.id + p}><td colSpan='4' className='message-mobile'>{val}</td></tr>
+                    } else {
+                        row.push(<td key={p} className='message'>{val}</td>)
+                    }
                 } else {
                     row.push(<td key={p}>{val}</td>)
                 }
@@ -325,9 +557,9 @@ export default class App extends React.Component {
                         }
                     }
                 }
-                for(let i in regexList){
+                for (let i in regexList) {
                     let r = regexList[i]
-                    if(!r.test(text)){
+                    if (!r.test(text)) {
                         filterFound = false
                     }
                 }
@@ -337,7 +569,14 @@ export default class App extends React.Component {
             }
             count++
             if ((count >= pageStart && count < pageEnd)) {
-                content.unshift(<tr key={d.id}>{row}</tr>)
+                if (messageRow !== undefined) {
+                    content.unshift(messageRow)
+                    content.unshift(<tr key={d.id + '.r1'} className='tr-even italic'>{row[2]}{row[3]}</tr>)
+                    content.unshift(<tr key={d.id + '.r2'} className='tr-even italic'>{row[0]}{row[1]}</tr>)
+                } else {
+                    content.unshift(<tr key={d.id} className={trClassName}>{row}</tr>)
+                }
+
             }
         }
         let pages = count / pageSize
@@ -347,73 +586,41 @@ export default class App extends React.Component {
         let orientation = 'vertical'
         let afterFilterHorizontal
         let afterFilterVertical
-        if (window.innerWidth < window.innerHeight) {
+        let dataMenu = <DelayedSearchInput
+            fullWidth
+            size='small'
+            variant='filled'
+            label='Filter'
+            placeholder='STRING or -STRING or /RegExp/'
+            value={this.state.filter}
+            fired={(v) => {
+                this.setState({ filter: v })
+                this.scolltoEndNeeded = true
+            }}
+        />
+        let pager = <React.Fragment>
+            <IconButton title='Posunout na začátek' size='small' onClick={() => this.setState({ currentPage: 0 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
+                <KeyboardDoubleArrowLeftIcon />
+            </IconButton>
+            <IconButton title='Předchozí stránka' size='small' onClick={() => this.setState({ currentPage: this.state.currentPage - 1 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
+                <KeyboardArrowLeftIcon />
+            </IconButton>
+            <div className='centered nowrap'> [ {this.state.currentPage + 1} / {pages} ]</div>
+            <IconButton title='Další stránka' size='small' onClick={() => this.setState({ currentPage: this.state.currentPage + 1 })} disabled={this.state.currentPage >= (pages - 1) || this.state.autoRefresh}>
+                <KeyboardArrowRightIcon />
+            </IconButton>
+            <IconButton title='Posunout na konec' size='small' onClick={() => this.setState({ currentPage: (pages - 1) })} disabled={this.state.currentPage >= (pages - 1) || this.state.autoRefresh}>
+                <KeyboardDoubleArrowRightIcon />
+            </IconButton>
+        </React.Fragment>
+        if (window.innerWidth < window.innerHeight || isMobile()) {
             orientation = 'horizontal'
-            afterFilterHorizontal = <div className='flex-row gray'>
-                <DelayedSearchInput
-                    fullWidth
-                    size='small'
-                    variant='filled'
-                    label='Filter'
-                    placeholder='STRING or -STRING or /RegExp/'
-                    value={this.state.filter}
-                    fired={(v) => {
-                        this.setState({ filter: v })
-                        this.scolltoEndNeeded = true
-                    }}
-                />
-                <div className='count'>
-                    <IconButton title='Posunout na začátek' size='small' onClick={() => this.setState({ currentPage: 0 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
-                        <KeyboardDoubleArrowLeftIcon />
-                    </IconButton>
-                    <IconButton title='Předchozí stránka' size='small' onClick={() => this.setState({ currentPage: this.state.currentPage - 1 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
-                        <KeyboardArrowLeftIcon />
-                    </IconButton>
-                    <div className='centered nowrap'> [ {this.state.currentPage + 1} / {pages} ]</div>
-                    <IconButton title='Další stránka' size='small' onClick={() => this.setState({ currentPage: this.state.currentPage + 1 })} disabled={this.state.currentPage >= (pages - 1) || this.state.autoRefresh}>
-                        <KeyboardArrowRightIcon />
-                    </IconButton>
-                    <IconButton title='Posunout na konec' size='small' onClick={() => this.setState({ currentPage: (pages - 1) })} disabled={this.state.currentPage >= (pages - 1) || this.state.autoRefresh}>
-                        <KeyboardDoubleArrowRightIcon />
-                    </IconButton>
-                </div>
-            </div>
+            afterFilterHorizontal = <div className='flex-row gray'>{dataMenu}</div>
         } else {
-            afterFilterVertical = <div className='flex-column gray' style={{ marginTop: 'auto' }}>
-                <DelayedSearchInput
-                    fullWidth
-                    size='small'
-                    variant='filled'
-                    label='Filter'
-                    placeholder='STRING or -STRING or /RegExp/'
-                    value={this.state.filter}
-                    fired={(v) => {
-                        this.setState({ filter: v })
-                        this.scolltoEndNeeded = true
-                    }}
-                />
-                <div className='count'>
-                    <IconButton title='Posunout na začátek' size='small' onClick={() => this.setState({ currentPage: 0 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
-                        <KeyboardDoubleArrowLeftIcon />
-                    </IconButton>
-                    <IconButton title='Předchozí stránka' size='small' onClick={() => this.setState({ currentPage: this.state.currentPage - 1 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
-                        <KeyboardArrowLeftIcon />
-                    </IconButton>
-                    <div className='centered nowrap'> [ {this.state.currentPage + 1} / {pages} ]</div>
-                    <IconButton title='Další stránka' size='small' onClick={() => this.setState({ currentPage: this.state.currentPage + 1 })} disabled={this.state.currentPage >= (pages - 1) || this.state.autoRefresh}>
-                        <KeyboardArrowRightIcon />
-                    </IconButton>
-                    <IconButton title='Posunout na konec' size='small' onClick={() => this.setState({ currentPage: (pages - 1) })} disabled={this.state.currentPage >= (pages - 1) || this.state.autoRefresh}>
-                        <KeyboardDoubleArrowRightIcon />
-                    </IconButton>
-                </div>
-            </div>
-        }
-        let red = ''
-        if (this.state.needReload) {
-            red = ' red'
+            afterFilterVertical = <div className='flex-column gray' style={{ marginTop: 'auto' }}>{dataMenu}</div>
         }
         setTimeout(this.scrollToEnd, 50)
+        document.title = 'Web Log View ... ' + this.state.data.length + '/' + count
         return (
             <React.Fragment>
                 <CssBaseline key="css" />
@@ -421,116 +628,7 @@ export default class App extends React.Component {
                     <LocalizationProvider dateAdapter={AdapterDayjs} locale='cs'>
                         <Paper className={'main-' + orientation} square>
                             <div className={'menu-' + orientation}>
-                                <div className={'flex-row rounded' + red}>
-                                    <Checkbox title='tail -f' checked={this.state.autoRefresh} onClick={() => {
-                                        let ar = !this.state.autoRefresh
-                                        this.setState({ autoRefresh: ar })
-                                        if (ar) {
-                                            this.setState({ data: [], currentPage: 0 })
-                                            setTimeout(this.timerReload, 50)
-                                        }
-                                    }} />
-                                    {orientation === 'vertical' ? <div className='flex-grow' /> : ''}
-                                    <div className='centered nowrap'>{this.state.data.length} / {count}</div>
-                                    {orientation === 'vertical' ? <div className='flex-grow' /> : ''}
-                                    <IconButton
-                                        title='reload'
-                                        size='small'
-                                        disabled={this.state.autoRefresh}
-                                        onClick={this.reloadData}
-                                    >
-                                        {this.state.waiting ? <img src='waiting.svg' alt='waiting' style={{ width: '1.5rem' }} /> : <ReplayIcon />}
-                                    </IconButton>
-                                </div>
-                                <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.from} onAccept={(v) => this.setState({ from: v, needReload: true })} />
-                                <DateTimeInput disabled={this.state.autoRefresh} variant='outlined' value={this.state.to} onAccept={(v) => this.setState({ to: v, needReload: true })} />
-                                <Autocomplete
-                                    fullWidth
-                                    multiple
-                                    size='small'
-                                    options={this.state.hosts}
-                                    disabled={this.state.autoRefresh}
-                                    getOptionLabel={option => option.hostname}
-                                    value={this.state.currentHost}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label='Host'
-                                            InputProps={{
-                                                ...params.InputProps,
-                                            }}
-                                        />
-                                    )}
-                                    onChange={(event, value) => this.setState({ currentHost: value, needReload: true })}
-                                />
-                                <Autocomplete
-                                    fullWidth
-                                    multiple
-                                    size='small'
-                                    disabled={this.state.autoRefresh}
-                                    options={this.state.units}
-                                    getOptionLabel={option => option.unit}
-                                    value={this.state.currentUnit}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label='Unit'
-                                            InputProps={{
-                                                ...params.InputProps,
-                                            }}
-                                        />
-                                    )}
-                                    onChange={(event, value) => this.setState({ currentUnit: value, needReload: true })}
-                                />
-                                <Autocomplete
-                                    fullWidth
-                                    multiple
-                                    size='small'
-                                    disabled={this.state.autoRefresh}
-                                    options={this.state.identifiers}
-                                    getOptionLabel={option => option.identifier}
-                                    value={this.state.currentIdentifier}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label='Identifiers'
-                                            InputProps={{
-                                                ...params.InputProps,
-                                            }}
-                                        />
-                                    )}
-                                    onChange={(event, value) => this.setState({ currentIdentifier: value, needReload: true })}
-                                />
-                                <Autocomplete
-                                    fullWidth
-                                    size='small'
-                                    disabled={this.state.autoRefresh}
-                                    options={limitOptions}
-                                    getOptionLabel={option => option.name}
-                                    isOptionEqualToValue={(option, value) => (option.value === value.value)}
-                                    value={this.state.currentLimit}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label='Limit'
-                                            InputProps={{
-                                                ...params.InputProps,
-                                            }}
-                                        />
-                                    )}
-                                    onChange={(event, value) => this.setState({ currentLimit: value, needReload: true })}
-                                />
-                                <TextField
-                                    fullWidth
-                                    size='small'
-                                    disabled={this.state.autoRefresh}
-                                    variant='outlined'
-                                    label='Filter'
-                                    value={this.state.loadFilter}
-                                    onChange={(ev) => {
-                                        this.setState({ loadFilter: ev.target.value, needReload: true })
-                                    }}
-                                />
+                                <MainMenu clearData={this.clearData} dataReceived={this.dataReceived} pager={pager} lastId={this.state.data.length > 0 ? this.state.data[0].id : -1} />
                                 {afterFilterVertical}
                             </div>
                             <div className={'divider-' + orientation} />
