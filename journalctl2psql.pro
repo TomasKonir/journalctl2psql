@@ -8,5 +8,5 @@ TARGET = journalctl2psql
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
-SOURCES += main.cpp
+SOURCES += journalctl2psql.cpp
 

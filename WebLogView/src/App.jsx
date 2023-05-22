@@ -14,7 +14,7 @@ import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArro
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import FullscreenIcon from '@mui/icons-material/Fullscreen'
-import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 
 import DateTimeInput from './DateTimeInput'
 import DelayedSearchInput from './DelayedSearchInput'
@@ -257,7 +257,7 @@ class MainMenu extends React.Component {
                 let ar = !this.state.autoRefresh
                 this.setState({ autoRefresh: ar })
                 if (ar) {
-                    this.setState({currentPage: 0 })
+                    this.setState({ currentPage: 0 })
                     this.props.clearData()
                     setTimeout(this.timerReload, 50)
                 }
@@ -442,7 +442,7 @@ export default class App extends React.Component {
         this.forceUpdate()
     }
 
-    clearData(){
+    clearData() {
         this.setState({ data: [] })
     }
 
@@ -495,6 +495,7 @@ export default class App extends React.Component {
         let i = 0
         let filterList = []
         let regexList = []
+        let compact = (isMobile() && window.innerWidth > window.innerHeight) || this.state.compact
         if (this.state.filter.length > 0) {
             let tmpList = this.state.filter.toLocaleLowerCase().split(' ')
             for (let i in tmpList) {
@@ -521,17 +522,20 @@ export default class App extends React.Component {
                 if (p === 'id' || p === 'text') {
                     continue
                 }
-                if (insertHeader) {
-                    header.push(<th key={p}>{p}</th>)
-                }
                 let val = d[p]
                 if (p === 'message') {
-                    if (isMobile()) {
+                    if (isMobile() || compact) {
                         messageRow = <tr key={d.id + p}><td colSpan='4' className='message-mobile'>{val}</td></tr>
                     } else {
+                        if (insertHeader) {
+                            header.push(<th key={p}>{p}</th>)
+                        }
                         row.push(<td key={p} className='message'>{val}</td>)
                     }
                 } else {
+                    if (insertHeader) {
+                        header.push(<th key={p}>{p}</th>)
+                    }
                     row.push(<td key={p}>{val}</td>)
                 }
             }
@@ -571,8 +575,12 @@ export default class App extends React.Component {
             if ((count >= pageStart && count < pageEnd)) {
                 if (messageRow !== undefined) {
                     content.unshift(messageRow)
-                    content.unshift(<tr key={d.id + '.r1'} className='tr-even italic'>{row[2]}{row[3]}</tr>)
-                    content.unshift(<tr key={d.id + '.r2'} className='tr-even italic'>{row[0]}{row[1]}</tr>)
+                    if (compact) {
+                        content.unshift(<tr key={d.id + '.r1'} className='tr-even italic'>{row}</tr>)
+                    } else {
+                        content.unshift(<tr key={d.id + '.r1'} className='tr-even italic'>{row[2]}{row[3]}</tr>)
+                        content.unshift(<tr key={d.id + '.r2'} className='tr-even italic'>{row[0]}{row[1]}</tr>)
+                    }
                 } else {
                     content.unshift(<tr key={d.id} className={trClassName}>{row}</tr>)
                 }
@@ -586,18 +594,21 @@ export default class App extends React.Component {
         let orientation = 'vertical'
         let afterFilterHorizontal
         let afterFilterVertical
-        let dataMenu = <DelayedSearchInput
-            fullWidth
-            size='small'
-            variant='filled'
-            label='Filter'
-            placeholder='STRING or -STRING or /RegExp/'
-            value={this.state.filter}
-            fired={(v) => {
-                this.setState({ filter: v })
-                this.scolltoEndNeeded = true
-            }}
-        />
+        let dataMenu = <div className='flex-row width-100'>
+            <DelayedSearchInput
+                fullWidth
+                size='small'
+                variant='filled'
+                label='Filter'
+                placeholder='STRING or -STRING or /RegExp/'
+                value={this.state.filter}
+                fired={(v) => {
+                    this.setState({ filter: v })
+                    this.scolltoEndNeeded = true
+                }}
+            />
+            {isMobile() ? '' : <Checkbox title='compact' checked={this.state.compact} onClick={() => this.setState({ compact: !this.state.compact })} />}
+        </div>
         let pager = <React.Fragment>
             <IconButton title='Posunout na začátek' size='small' onClick={() => this.setState({ currentPage: 0 })} disabled={this.state.currentPage === 0 || this.state.autoRefresh}>
                 <KeyboardDoubleArrowLeftIcon />
