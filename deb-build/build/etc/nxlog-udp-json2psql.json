@@ -1,0 +1,9 @@
+{
+	"dbDriver"  :"QPSQL",
+	"dbHost"    :"localhost",
+	"dbPort"    : 5432,
+	"dbUser"    :"log",
+	"dbPassword":"log",
+	"dbName"    :"log",
+	"listenPort":"1514"
+}

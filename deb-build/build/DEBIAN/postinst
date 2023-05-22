@@ -13,3 +13,7 @@ if [ "$(systemctl is-enabled journalctl2psql-remote)" == "enabled" ]; then
 	systemctl restart journalctl2psql-remote
 fi
 
+if [ "$(systemctl is-enabled nxlog-udp-json2psql)" == "enabled" ]; then
+	echo "starting nxlog-udp-json2psql"
+	systemctl restart nxlog-udp-json2psql
+fi

@@ -11,6 +11,7 @@ fi
 
 echo SYNCING BINARIES
 rsync -avpx ../journalctl2psql build/usr/bin/
+rsync -avpx ../nxlog-udp-json2psql build/usr/bin/
 
 if [ "$(which dpkg-architecture)" ==  "" ]; then
 	exit 0

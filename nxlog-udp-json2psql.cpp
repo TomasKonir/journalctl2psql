@@ -10,6 +10,8 @@
 #include <QThread>
 #include <QFile>
 #include <QDebug>
+#include <QUdpSocket>
+#include <QNetworkDatagram>
 #include <signal.h>
 #include <unistd.h>
 
@@ -42,17 +44,6 @@ void catchUnixSignals(std::initializer_list<int> quitSignals) {
         sigaction(sig, &sa, nullptr);
 }
 
-
-QStringList arrayToStringList(QJsonArray a){
-    QStringList ret;
-    foreach(QJsonValue v, a){
-        if(v.isString()){
-            ret << v.toString();
-        }
-    }
-    return(ret);
-}
-
 inline void doQuery(QSqlQuery &q){
     if(!q.exec()){
         qInfo() << q.lastQuery();
@@ -70,7 +61,7 @@ int main(int argc, char **argv){
     QString dbPassword;
     QString dbName;
     QStringList addFields;
-    QString hostname = QHostInfo::localHostName();
+    int listenPort;
 
     if(app.arguments().count() < 2){
         qInfo() << "Config paramteter missing";
@@ -91,9 +82,10 @@ int main(int argc, char **argv){
     dbUser     = o.value("dbUser").toString("log");
     dbPassword = o.value("dbPassword").toString("log");
     dbName     = o.value("dbName").toString("log");
-    addFields  = arrayToStringList(o.value("addFields").toArray());
+    listenPort = o.value("listenPort").toInt(1514);
 
-    QSqlDatabase db = QSqlDatabase::addDatabase(dbDriver);
+    QSqlDatabase db;
+    db = QSqlDatabase::addDatabase(dbDriver);
     db.setHostName(dbHost);
     db.setPort(dbPort);
     db.setUserName(dbUser);
@@ -104,87 +96,50 @@ int main(int argc, char **argv){
         qInfo() << "Unable to connect to database ... sleep 10s, than exit" ;
         QThread::sleep(10);
         return(1);
-    }    
-
-    QStringList journalctlParams({"-f","-o","json"});
-    QSqlQuery lastLogQuery(db);
-    lastLogQuery.prepare("SELECT cursor FROM last_cursor WHERE hostname=:hostname");
-    lastLogQuery.addBindValue(hostname);
-    doQuery(lastLogQuery);
-    if(lastLogQuery.next()){
-        journalctlParams << "--after-cursor" << lastLogQuery.value(0).toString();
-    } else {
-        journalctlParams << "--since" << "2007-08-28 00:00:00";
     }
 
-    QProcess journalctl;
-    journalctl.setReadChannel(QProcess::StandardOutput);
-    journalctl.start("journalctl",journalctlParams);
-    if(!journalctl.waitForStarted()){
-        qInfo() << "Unable to start journalctl";
-        exit(1);
-    }
+    QUdpSocket udpServer;
+    udpServer.bind(QHostAddress::Any, listenPort);
 
-    qInfo() << "Journalctl started with args:" << journalctlParams.join(" ");
     QSqlQuery insertQuery(db);
-    insertQuery.prepare("SELECT FROM journal_insert(TO_TIMESTAMP(:time)::TIMESTAMP WITHOUT TIME ZONE,:hostname,:unit,:identifier,:facility,:priority,:pid,:message,:fields,:cursor)");
+    insertQuery.prepare("SELECT FROM journal_insert(:time,:hostname,:unit,:identifier,:facility,:priority,:pid,:message,:fields,:cursor)");
 
     int inserts = 0;
     bool inTransaction = false;
     QElapsedTimer et; et.start();
     while(true){
         if(ctrl_c){
-            if(inTransaction){
-                db.commit();
-            }
+            db.commit();
             break;
         }
-        journalctl.waitForReadyRead(100);
+        udpServer.waitForReadyRead(100);
         if(inserts > 1000 || (et.elapsed() > 1000 && inTransaction)){
             db.commit();
             inTransaction = false;
             inserts = 0;
             et.restart();
         }
-        while(journalctl.canReadLine()){
-            QJsonObject o = QJsonDocument::fromJson(journalctl.readLine()).object();
+        while(udpServer.hasPendingDatagrams()){
+            QNetworkDatagram datagram = udpServer.receiveDatagram();
+            QJsonObject o = QJsonDocument::fromJson(datagram.data()).object();
             if(o.isEmpty()){
                 //qInfo() << "Invalid line";
                 continue;
             }
-            QString time = o.value("_SOURCE_REALTIME_TIMESTAMP").toString();
-            QString cursor = o.value("__CURSOR").toString();
-            QString identifier = o.value("SYSLOG_IDENTIFIER").toString("EMPTY");
-            int facility = o.value("SYSLOG_FACILITY").toString("-1").toInt();
-            int priority = o.value("PRIORITY").toString("-1").toInt();
-            qint64 pid = o.value("_PID").toString("-1").toInt();
-            QString unit = o.value("_SYSTEMD_UNIT").toString("EMPTY");
-            QString message = o.value("MESSAGE").toString();
-            QString fields;
 
-            if(cursor.length() == 0){
-                continue;
-            }
+            QString time = o.value("EventTime").toString();
+            QString cursor = QString::number(o.value("RecordNumber").toInt());
+            QString identifier = o.value("SourceName").toString("EMPTY");
+            int facility = o.value("OpcodeValue").toString("-1").toInt();
+            int priority = o.value("SeverityValue").toString("-1").toInt();
+            qint64 pid = o.value("ProcessID").toString("-1").toInt();
+            QString unit = o.value("SourceName").toString("EMPTY");
+            QString message = o.value("Message").toString();
+            QString hostname = o.value("Hostname").toString();
 
-            if(addFields.length()){
-                QJsonObject ii;
-                foreach(QString s, addFields){
-                    if(o.contains(s)) {
-                        ii.insert(s,o.value(s));
-                    }
-                }
-                fields = QString::fromUtf8(QJsonDocument(ii).toJson(QJsonDocument::Compact));
-            }
-
-            if(time.length() == 0){
-                time = o.value("__REALTIME_TIMESTAMP").toString();
-            }
-            if(time.length() > 6){
-                time.insert(time.length() - 6,".");
-            } else {
-                //qInfo() << "Invalid time" << o;
-                continue;
-            }
+            QString ip = datagram.senderAddress().toString();
+            o.insert("ip",ip);
+            QString fields = QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact));
 
             insertQuery.bindValue(":time",time);
             insertQuery.bindValue(":hostname",hostname);
@@ -203,13 +158,8 @@ int main(int argc, char **argv){
             doQuery(insertQuery);
             inserts++;
         }
-        journalctl.readAllStandardError();
-        if(journalctl.state() != QProcess::Running){
-            qInfo() << "Journalctl finished";
-            db.commit();
-            return(1);
-        }
     }
+
     db.close();
     return(0);
 }

@@ -45,8 +45,9 @@
     gap: 0.5rem;
     padding: 0.25rem;
     padding-top: 0.5rem;
-    min-width: fit-content;
+    min-width: min-content;
     max-width: 32%;
+    width: fit-content;
 }
 
 .divider-vertical {

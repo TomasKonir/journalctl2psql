@@ -1,0 +1,15 @@
+[Unit]
+Description=NXLOG json from UDP to psql forwarder
+Requires=network.target postgresql.service
+After=postgreql.service
+AllowIsolate=yes
+
+[Service]
+ExecStart=/usr/bin/nxlog-udp-json2psql /etc/nxlog-udp-json2psql.json
+Restart=on-failure
+User=root
+Group=root
+
+[Install]
+WantedBy=default.target
+

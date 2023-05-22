@@ -13,5 +13,6 @@ QMAKE_EXTRA_TARGETS += first version
 
 SUBDIRS += deb-prepare.pro
 SUBDIRS += journalctl2psql.pro
+SUBDIRS += nxlog-udp-json2psql.pro
 SUBDIRS += deb-build.pro
-deb-build.depends = deb-prepare journalctl2psql
+deb-build.depends = deb-prepare journalctl2psql nxlog-udp-json2psql

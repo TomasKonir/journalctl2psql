@@ -48,19 +48,23 @@
         $limit = "LIMIT ".$filter["limit"];
     }
 
-    $query = "SELECT journal.id,time,hostname,unit,identifier,message FROM journal LEFT JOIN hostname ON hostname.id=hostname_id LEFT JOIN unit ON unit.id=unit_id LEFT JOIN identifier ON identifier.id=identifier_id " . $where . " ORDER BY time DESC,journal.id DESC ".$limit;
+    $query = "SELECT journal.id,time,hostname,alias,unit,identifier,message FROM journal LEFT JOIN hostname ON hostname.id=hostname_id LEFT JOIN unit ON unit.id=unit_id LEFT JOIN identifier ON identifier.id=identifier_id " . $where . " ORDER BY time DESC,journal.id DESC ".$limit;
     //error_log($query);
     $data = pg_query($db, $query);
     $first = true;
     echo "[\n";
     while ($line = pg_fetch_array($data, null, PGSQL_NUM)) {
+        $hostname = strval($line[3]);
+        if(strlen($hostname) == 0){
+            $hostname = strval($line[2]);
+        }
         $row = array();
         $row["id"] = intval($line[0]);
         $row["time"] = strval($line[1]);
-        $row["host"] = strval($line[2]);
-        $row["unit"] = strval($line[3]);
-        $row["identifier"] = strval($line[4]);
-        $row["message"] = strval($line[5]);
+        $row["host"] = $hostname;
+        $row["unit"] = strval($line[4]);
+        $row["identifier"] = strval($line[5]);
+        $row["message"] = strval($line[6]);
         if($first){
             echo "\n";
             $first = false;
