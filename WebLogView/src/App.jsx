@@ -5,7 +5,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import CssBaseline from '@mui/material/CssBaseline'
 import 'dayjs/locale/cs'
 
-import { Paper, TextField, Autocomplete, IconButton, Checkbox } from '@mui/material'
+import { Paper, TextField, Autocomplete, IconButton, Checkbox, Dialog, DialogActions } from '@mui/material'
 import ReplayIcon from '@mui/icons-material/Replay'
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft'
 import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft'
@@ -15,9 +15,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import FullscreenIcon from '@mui/icons-material/Fullscreen'
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
+import SettingsIcon from '@mui/icons-material/Settings'
+import CheckIcon from '@mui/icons-material/Check'
 
 import DateTimeInput from './DateTimeInput'
 import DelayedSearchInput from './DelayedSearchInput'
+import NumberInput from './NumberInput'
 
 const theme = createTheme({
     palette: {
@@ -117,6 +120,133 @@ export function isMobile() {
     return check
 }
 
+class SettingsDialog extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            currentHost: null,
+            currentAlias: '',
+            currentTimeOffset: '',
+            waiting: false,
+        }
+    }
+
+    render() {
+        let ch = this.state.currentHost
+        if (ch === null) {
+            ch = {
+                alias: '',
+                hostname: '',
+                time_offset: 0
+            }
+        }
+
+        if (this.state.waiting) {
+            return (<Dialog open={true}>
+                <Paper>
+                    <img alt='waiting' src='waiting.svg' style={{ width: '8rem', height: '8rem' }} />
+                </Paper>
+            </Dialog>)
+        }
+        return (
+            <Dialog open={true} onClose={this.props.onClose}>
+                <Paper className='flex-column' style={{ minWidth: '20rem', padding: '0.5rem' }}>
+                    <Autocomplete
+                        fullWidth
+                        size='small'
+                        options={this.props.hosts}
+                        getOptionLabel={option => option.displayname}
+                        value={this.state.currentHost}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label='Host'
+                                InputProps={{
+                                    ...params.InputProps,
+                                }}
+                            />
+                        )}
+                        onChange={(event, value) => {
+                            let time_offset = '0'
+                            let alias = ''
+                            if (value !== null) {
+                                alias = value.alias
+                                time_offset = value.time_offset
+                                if (time_offset === undefined || time_offset === null) {
+                                    time_offset = '0'
+                                }
+                                if (alias === undefined || alias === null) {
+                                    alias = ''
+                                }
+                            }
+                            this.setState({
+                                currentHost: value,
+                                currentAlias: alias,
+                                currentTimeOffset: time_offset
+                            })
+                        }}
+                    />
+                    <div className='centered'><b>{ch.hostname}</b></div>
+                    <div className='flex-row width-100'>
+                        <TextField
+                            fullWidth
+                            size='small'
+                            disabled={this.state.currentHost === null}
+                            variant='outlined'
+                            label='Alias'
+                            value={this.state.currentAlias}
+                            onChange={(ev) => {
+                                this.setState({ currentAlias: ev.target.value })
+                            }}
+                        />
+                        <IconButton size='small' disabled={this.state.currentHost === null || this.state.currentAlias === ch.alias}
+                            onClick={() => {
+                                this.setState({ waiting: true })
+                                fetch('api/setAlias.php?id=' + this.state.currentHost.id + '&alias=' + this.state.currentAlias).then(
+                                    () => {
+                                        this.props.onReload()
+                                        this.props.onClose()
+                                    }
+                                )
+                            }}
+                        >
+                            <CheckIcon />
+                        </IconButton>
+                    </div>
+                    <div className='flex-row width-100'>
+                        <NumberInput
+                            fullWidth
+                            size='small'
+                            disabled={this.state.currentHost === null}
+                            variant='outlined'
+                            label='Time offset'
+                            min={-14}
+                            max={14}
+                            value={parseInt(this.state.currentTimeOffset)}
+                            onChange={(val) => {
+                                this.setState({ currentTimeOffset: val })
+                            }}
+                        />
+                        <IconButton size='small' disabled={this.state.currentHost === null || this.state.currentTimeOffset === parseInt(ch.time_offset)}
+                            onClick={() => {
+                                this.setState({ waiting: true })
+                                fetch('api/setTimeOffset.php?id=' + this.state.currentHost.id + '&offset=' + this.state.currentTimeOffset).then(
+                                    () => {
+                                        this.props.onReload()
+                                        this.props.onClose()
+                                    }
+                                )
+                            }}
+                        >
+                            <CheckIcon />
+                        </IconButton>
+                    </div>
+                </Paper>
+            </Dialog>
+        )
+    }
+}
+
 class MainMenu extends React.Component {
     constructor(props) {
         super(props)
@@ -141,6 +271,7 @@ class MainMenu extends React.Component {
             currentIdentifier: [],
             currentLimit: { name: "1024", value: 1024 },
             filterVisible: true,
+            settingsVisible: false,
         }
         this.fetchList = this.fetchList.bind(this)
         this.reloadData = this.reloadData.bind(this)
@@ -278,6 +409,9 @@ class MainMenu extends React.Component {
             >
                 {this.state.fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
             </IconButton>
+            <IconButton size='small' onClick={() => this.setState({ settingsVisible: true })}>
+                <SettingsIcon />
+            </IconButton>
         </div>
         let hostDiv = <Autocomplete
             key='host'
@@ -286,7 +420,7 @@ class MainMenu extends React.Component {
             size='small'
             options={this.state.hosts}
             disabled={this.state.autoRefresh}
-            getOptionLabel={option => option.hostname}
+            getOptionLabel={option => option.displayname}
             value={this.state.currentHost}
             renderInput={(params) => (
                 <TextField
@@ -371,6 +505,12 @@ class MainMenu extends React.Component {
                 this.setState({ loadFilter: ev.target.value, needReload: true })
             }}
         />
+
+        let settingsDiv
+        if (this.state.settingsVisible) {
+            settingsDiv = <SettingsDialog onClose={() => this.setState({ settingsVisible: false })} onReload={() => this.componentDidMount()} hosts={this.state.hosts} />
+        }
+
         if (isMobile()) {
             let content = []
             if (this.state.filterVisible) {
@@ -391,6 +531,7 @@ class MainMenu extends React.Component {
                 <div className='flex-column width-100'>
                     {reloadDiv}
                     {content}
+                    {settingsDiv}
                 </div>
             )
         } else {
@@ -404,6 +545,7 @@ class MainMenu extends React.Component {
                     {identDiv}
                     {limitDiv}
                     {filterDiv}
+                    {settingsDiv}
                 </React.Fragment>
             )
         }
@@ -422,12 +564,14 @@ export default class App extends React.Component {
             needReload: false,
             currentPage: 0,
             fullscreen: false,
+            detail: undefined,
         }
 
         this.reload = this.reload.bind(this)
         this.clearData = this.clearData.bind(this)
         this.dataReceived = this.dataReceived.bind(this)
         this.scrollToEnd = this.scrollToEnd.bind(this)
+        this.detailClicked = this.detailClicked.bind(this)
     }
 
     componentDidMount() {
@@ -486,6 +630,19 @@ export default class App extends React.Component {
         this.scolltoEndNeeded = false
     }
 
+    detailClicked(ev) {
+        fetch('api/detail.php?id=' + ev.target.id).then(
+            (response) => {
+                response.json().then(
+                    (json) => {
+                        json.fields = JSON.parse(json.fields)
+                        this.setState({ detail: json })
+                    }
+                )
+            }
+        )
+    }
+
     render() {
         let content = []
         let header = []
@@ -519,10 +676,15 @@ export default class App extends React.Component {
                 trClassName = 'tr-even'
             }
             for (let p in d) {
+                let className
                 if (p === 'id' || p === 'text') {
                     continue
                 }
                 let val = d[p]
+                if (p === 'time') {
+                    className = 'td-time'
+                    val = <div id={d['id']} onClick={this.detailClicked} style={{ cursor: 'pointer' }}>{val}</div>
+                }
                 if (p === 'message') {
                     if (isMobile() || compact) {
                         messageRow = <tr key={d.id + p}><td colSpan='4' className='message-mobile'>{val}</td></tr>
@@ -536,7 +698,7 @@ export default class App extends React.Component {
                     if (insertHeader) {
                         header.push(<th key={p}>{p}</th>)
                     }
-                    row.push(<td key={p}>{val}</td>)
+                    row.push(<td className={className} key={p}>{val}</td>)
                 }
             }
             if (insertHeader) {
@@ -632,6 +794,28 @@ export default class App extends React.Component {
         }
         setTimeout(this.scrollToEnd, 50)
         document.title = 'Web Log View ... ' + this.state.data.length + '/' + count
+
+        let detail
+        if (this.state.detail !== undefined) {
+            let fields = []
+            for (let i in this.state.detail.fields) {
+                let f = this.state.detail.fields[i]
+                fields.push(<tr key={i}><td>{i}:</td><td style={{ overflowWrap: 'anywhere', minWidth: '60vw' }}>{f}</td></tr>)
+            }
+            detail = <Dialog open={true} maxWidth='xl' onClose={() => this.setState({ detail: undefined })}>
+                <Paper sx={{ padding: '0.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ marginLeft: 'auto', marginRight: 'auto' }}><b>{this.state.detail.time}</b></div>
+                    <pre style={{ whiteSpace: 'break-spaces' }}>
+                        <table>
+                            <tbody>
+                                {fields}
+                            </tbody>
+                        </table>
+                    </pre>
+                </Paper>
+            </Dialog>
+        }
+
         return (
             <React.Fragment>
                 <CssBaseline key="css" />
@@ -654,6 +838,7 @@ export default class App extends React.Component {
                                 </table>
                             </div>
                             {afterFilterHorizontal}
+                            {detail}
                         </Paper>
                     </LocalizationProvider>
                 </ThemeProvider>

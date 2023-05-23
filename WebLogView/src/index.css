@@ -73,8 +73,15 @@ td {
     padding-left: 0.25rem;
     padding-top: 0px;
     padding-bottom: 0px;
-    white-space: nowrap;
+    white-space: normal;/*nowrap*/
+    max-width: 22rem;
+    text-overflow: ellipsis;
     vertical-align: top;
+}
+
+.td-time {
+    max-width: unset;
+    white-space: nowrap;
 }
 
 th {
@@ -99,6 +106,7 @@ tr:hover {
     white-space: break-spaces;
     word-wrap: break-word;
     overflow-wrap: anywhere;
+    max-width: unset;
 }
 
 .message-mobile {
@@ -148,6 +156,13 @@ tr:hover {
 
 .centered {
     margin: auto;
+}
+
+.centered-vertical {
+    margin-top: auto;
+    margin-bottom: auto;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .rounded {
