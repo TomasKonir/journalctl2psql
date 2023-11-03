@@ -4,7 +4,8 @@ CREATE EXTENSION pg_trgm;
 CREATE TABLE hostname(
 	id SERIAL NOT NULL UNIQUE,
 	hostname VARCHAR NOT NULL UNIQUE,
-	alias VARCHAR
+	alias VARCHAR,
+	time_offset INT NOT NULL DEFAULT 0,
 );
 
 CREATE TABLE unit(
@@ -59,6 +60,7 @@ CREATE OR REPLACE FUNCTION journal_insert(t TIMESTAMP, p_hostname VARCHAR, p_uni
 AS $$
 DECLARE return_id     INT;
 DECLARE hostname_id   INT;
+DECLARE hostname_time_offset INT;
 DECLARE unit_id       INT;
 DECLARE identifier_id INT;
 DECLARE key_id        INT;
@@ -66,6 +68,11 @@ BEGIN
     SELECT id INTO hostname_id FROM hostname WHERE hostname = p_hostname;
     IF hostname_id IS NULL THEN
         INSERT INTO hostname(hostname) VALUES(p_hostname) RETURNING id INTO hostname_id;
+    END IF;
+
+	SELECT time_offset INTO hostname_time_offset FROM hostname WHERE hostname = p_hostname;
+    IF hostname_time_offset IS NULL THEN
+        hostname_time_offset = 0;
     END IF;
 
     SELECT id INTO unit_id FROM unit WHERE unit = p_unit;
@@ -84,7 +91,7 @@ BEGIN
     END IF;
 
     INSERT INTO last_cursor(hostname,cursor) VALUES(p_hostname,p_cursor) ON CONFLICT(hostname) DO UPDATE SET cursor = p_cursor; 
-    INSERT INTO journal(time,hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) VALUES(t,hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) RETURNING id INTO return_id;
+    INSERT INTO journal(time,hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) VALUES(t + (hostname_time_offset || 'minutes')::interval,hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) RETURNING id INTO return_id;
     RETURN return_id;
 END;
 $$;

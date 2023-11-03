@@ -1,1 +1,2 @@
 /etc/journalctl2psql.json
+/etc/nxlog-udp-json2psql.json

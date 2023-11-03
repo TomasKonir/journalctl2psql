@@ -162,6 +162,18 @@ int main(int argc, char **argv){
             QString message = o.value("MESSAGE").toString();
             QString fields;
 
+
+            if(unit.startsWith("session-") && unit.endsWith(".scope")){
+                QString test = unit;
+                bool ok;
+                test.remove("session-");
+                test.remove(".scope");
+                test.toLongLong(&ok);
+                if(ok){
+                    unit = "session-XXXXXX.scope";
+                }
+            }
+
             if(cursor.length() == 0){
                 continue;
             }

@@ -129,7 +129,7 @@ int main(int argc, char **argv){
 
             QString time = o.value("EventTime").toString();
             QString cursor = QString::number(o.value("RecordNumber").toInt());
-            QString identifier = o.value("SourceName").toString("EMPTY");
+            QString identifier = o.value("AccountType").toString("EMPTY") + ":" + o.value("AccountName").toString("EMPTY");
             int facility = o.value("OpcodeValue").toString("-1").toInt();
             int priority = o.value("SeverityValue").toString("-1").toInt();
             qint64 pid = o.value("ProcessID").toString("-1").toInt();
