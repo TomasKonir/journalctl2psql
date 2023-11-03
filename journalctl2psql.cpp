@@ -163,15 +163,8 @@ int main(int argc, char **argv){
             QString fields;
 
 
-            if(unit.startsWith("session-") && unit.endsWith(".scope")){
-                QString test = unit;
-                bool ok;
-                test.remove("session-");
-                test.remove(".scope");
-                test.toLongLong(&ok);
-                if(ok){
-                    unit = "session-XXXXXX.scope";
-                }
+            if(unit.startsWith("session-") && unit.endsWith(".scope") && !unit.startsWith("session-c")){
+                unit = "session-XXXXXX.scope";
             }
 
             if(cursor.length() == 0){
