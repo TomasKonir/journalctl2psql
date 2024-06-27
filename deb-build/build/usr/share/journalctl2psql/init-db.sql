@@ -2,6 +2,28 @@ BEGIN;
 CREATE EXTENSION unaccent;
 CREATE EXTENSION pg_trgm;
 
+CREATE SEQUENCE uuid_sequence;
+
+CREATE OR REPLACE FUNCTION unaccent_immutable(text) RETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT AS
+$$
+	SELECT public.unaccent('public.unaccent', $1)
+$$;
+
+CREATE OR REPLACE FUNCTION uuid_from_time_min(t TIMESTAMP) RETURNS UUID LANGUAGE SQL SECURITY DEFINER IMMUTABLE PARALLEL SAFE STRICT AS
+$$
+	SELECT concat(LPAD(TO_HEX(ROUND(EXTRACT (EPOCH FROM t) * 1000)::BIGINT),12,'0'),'-7000-0000-000000000000')::UUID
+$$;
+
+CREATE OR REPLACE FUNCTION uuid_from_time_max(t TIMESTAMP) RETURNS UUID LANGUAGE SQL SECURITY DEFINER IMMUTABLE PARALLEL SAFE STRICT AS
+$$
+	SELECT concat(LPAD(TO_HEX(ROUND(EXTRACT (EPOCH FROM t) * 1000)::BIGINT),12,'0'),'-7FFF-FFFF-FFFFFFFFFFFF')::UUID
+$$;
+
+CREATE OR REPLACE FUNCTION uuid_get_next(t TIMESTAMP) RETURNS UUID LANGUAGE SQL SECURITY DEFINER AS
+$$
+	SELECT concat(LPAD(TO_HEX(ROUND(EXTRACT (EPOCH FROM t) * 1000)::BIGINT),12,'0'),'-7000-0000-',LPAD(TO_HEX(NEXTVAL('uuid_sequence')),12,'0'))::UUID
+$$;
+
 CREATE TABLE hostname(
 	id SERIAL NOT NULL UNIQUE,
 	hostname VARCHAR NOT NULL UNIQUE,
@@ -32,8 +54,6 @@ CREATE TABLE hostname_unit_identifier(
 	PRIMARY KEY(hostname,unit,identifier)
 );
 
-CREATE SEQUENCE journal_sequence_id;
-
 CREATE TABLE journal(
 	time_id UUID NOT NULL UNIQUE,
 	hostname_id INT NOT NULL REFERENCES hostname(id) ON DELETE CASCADE,
@@ -51,19 +71,7 @@ CREATE INDEX journal_unit_idx ON journal(unit_id);
 CREATE INDEX journal_identifier_idx ON journal(identifier_id);
 CREATE INDEX journal_time_id_idx ON journal(time_id);
 CREATE INDEX journal_hostname_unit_idx ON journal(hostname_id,unit_id,time_id);
-
-CREATE OR REPLACE FUNCTION unaccent_immutable(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS
-$$
-	SELECT public.unaccent('public.unaccent', $1)
-$$;
 CREATE INDEX journal_message_idx ON journal USING GIN (unaccent_immutable(lower(message)) gin_trgm_ops);
-
-CREATE OR REPLACE FUNCTION journal_get_next_uuid(t TIMESTAMP) RETURNS UUID LANGUAGE PLPGSQL SECURITY DEFINER
-AS $$
-BEGIN
-	RETURN concat(LPAD(TO_HEX(ROUND(EXTRACT (EPOCH FROM t) * 1000)::BIGINT),12,'0'),'-7000-0000-',LPAD(TO_HEX(NEXTVAL('journal_sequence_id')),12,'0'));
-END;
-$$;
 
 CREATE OR REPLACE FUNCTION journal_insert(t TIMESTAMP, p_hostname VARCHAR, p_unit VARCHAR, p_identifier VARCHAR, facility INT, priority INT, pid BIGINT, message VARCHAR, fields JSONB, p_cursor VARCHAR) RETURNS UUID LANGUAGE PLPGSQL SECURITY DEFINER
 AS $$
@@ -114,7 +122,7 @@ BEGIN
     END IF;
 
     INSERT INTO last_cursor(hostname,cursor) VALUES(p_hostname,p_cursor) ON CONFLICT(hostname) DO UPDATE SET cursor = p_cursor;
-    INSERT INTO journal(time_id,hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) VALUES(journal_get_next_uuid(t + (hostname_time_offset || 'minutes')::interval),hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) RETURNING time_id INTO return_id;
+    INSERT INTO journal(time_id,hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) VALUES(uuid_get_next(t + (hostname_time_offset || 'minutes')::interval),hostname_id,unit_id,identifier_id,facility,priority,pid,message,fields) RETURNING time_id INTO return_id;
     RETURN return_id;
 END;
 $$;
@@ -129,7 +137,9 @@ GRANT SELECT ON TABLE hostname TO "log-reader";
 GRANT SELECT ON TABLE unit TO "log-reader";
 GRANT SELECT ON TABLE identifier TO "log-reader";
 
---SELECT * FROM journal_get_next_uuid(now()::TIMESTAMP WITHOUT TIME ZONE);
+--SELECT * FROM uuid_from_time_min(now()::TIMESTAMP WITHOUT TIME ZONE);
+--SELECT * FROM uuid_from_time_max(now()::TIMESTAMP WITHOUT TIME ZONE);
+--SELECT * FROM uuid_get_next(now()::TIMESTAMP WITHOUT TIME ZONE);
 --SELECT * FROM journal_insert(now()::TIMESTAMP WITHOUT TIME ZONE,'hostname','unit','identifier',1,2,3,'message','{}','cursor');
 --SELECT * FROM journal_insert(now()::TIMESTAMP WITHOUT TIME ZONE,'hostname','unit','identifier',1,2,3,'message','{}','cursor');
 --SELECT * FROM journal_insert(now()::TIMESTAMP WITHOUT TIME ZONE,'hostname','unit','identifier',1,2,3,'message','{}','cursor');
@@ -138,8 +148,8 @@ GRANT SELECT ON TABLE identifier TO "log-reader";
 --DROP TABLE unit,identifier,last_cursor,hostname_unit_identifier,journal,hostname;
 --DROP FUNCTION unaccent_immutable;
 --DROP FUNCTION journal_insert;
---DROP FUNCTION journal_get_next_uuid;
---DROP SEQUENCE journal_sequence_id;
+--DROP FUNCTION uuid_get_next,uuid_from_time_min,uuid_from_time_max;
+--DROP SEQUENCE uuid_sequence;
 --DROP EXTENSION pg_trgm;
 --DROP EXTENSION unaccent;
 COMMIT;

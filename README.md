@@ -22,7 +22,7 @@ Package:
 -- compile --
 
     mkdir Build; cd Build
-    qmake ../all.pro
+    cmake ../
     make
 
 -- install and run --

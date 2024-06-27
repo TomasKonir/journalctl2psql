@@ -345,7 +345,7 @@ class MainMenu extends React.Component {
         params.to = this.state.to
         params.limit = this.state.currentLimit.value
         params.filter = this.state.loadFilter
-        if (this.state.autoRefresh && this.props.lastId > 0) {
+        if (this.state.autoRefresh) {
             params.lastId = this.props.lastId
         } else {
             this.props.clearData()
@@ -363,7 +363,7 @@ class MainMenu extends React.Component {
             this.setState({ waiting: false })
         }
         if (this.state.autoRefresh) {
-            setTimeout(this.timerReload, 2000)
+            setTimeout(this.timerReload, 1000)
         }
         if (json === undefined || json === null) {
             return
@@ -557,10 +557,11 @@ export default class App extends React.Component {
         super(props)
         this.tableRef = React.createRef()
         this.scolltoEndNeeded = false
+        this.data = []
+        this.lastId = -1
         this.state = {
             loadFilter: '',
             filter: '',
-            data: [],
             needReload: false,
             currentPage: 0,
             fullscreen: false,
@@ -587,13 +588,19 @@ export default class App extends React.Component {
     }
 
     clearData() {
-        this.setState({ data: [] })
+        this.data = []
+        this.lastId = -1
+        this.reload()
     }
 
     dataReceived(json, autoRefresh, currentLimit) {
+        let lastId = -1
         for (let i in json) {
             let d = json[i]
             let text = ''
+            if (lastId < d.id) {
+                lastId = d.id
+            }
             for (let p in d) {
                 if (p === 'id') {
                     continue
@@ -608,18 +615,22 @@ export default class App extends React.Component {
             d.text = text.toLocaleLowerCase()
             json[i] = d
         }
-        if (autoRefresh && this.state.data.length > 0) {
+        if (autoRefresh && this.data.length > 0) {
             if (json.length > 0) {
-                json.push(...this.state.data)
+                json.push(...this.data)
                 if (json.length > currentLimit) {
                     json.splice(currentLimit, json.length - currentLimit)
                 }
-                this.setState({ data: json })
+                this.data = json
                 this.scolltoEndNeeded = true
             }
         } else {
             this.scolltoEndNeeded = true
-            this.setState({ data: json })
+            this.data = json
+        }
+        if (!autoRefresh || json.length > 0) {
+            this.lastId = lastId
+            this.reload()
         }
     }
 
@@ -666,8 +677,8 @@ export default class App extends React.Component {
                 }
             }
         }
-        while (i < this.state.data.length) {
-            let d = this.state.data[i]
+        while (i < this.data.length) {
+            let d = this.data[i]
             let row = []
             let insertHeader = header.length === 0 && !isMobile()
             let messageRow
@@ -682,8 +693,17 @@ export default class App extends React.Component {
                 }
                 let val = d[p]
                 if (p === 'time') {
-                    className = 'td-time'
+                    className = 'td-nowrap'
                     val = <div id={d['id']} onClick={this.detailClicked} style={{ cursor: 'pointer' }}>{val}</div>
+                }
+                if (p === 'host') {
+                    className = 'td-nowrap'
+                }
+                if (p === 'unit') {
+                    className = 'td-nowrap'
+                }
+                if (p === 'identifier') {
+                    className = 'td-nowrap'
                 }
                 if (p === 'message') {
                     if (isMobile() || compact) {
@@ -792,8 +812,8 @@ export default class App extends React.Component {
         } else {
             afterFilterVertical = <div className='flex-column gray' style={{ marginTop: 'auto' }}>{dataMenu}</div>
         }
-        setTimeout(this.scrollToEnd, 50)
-        document.title = 'Web Log View ... ' + this.state.data.length + '/' + count
+        setTimeout(this.scrollToEnd, 25)
+        document.title = 'Web Log View ... ' + this.data.length + '/' + count
 
         let detail
         if (this.state.detail !== undefined) {
@@ -823,7 +843,7 @@ export default class App extends React.Component {
                     <LocalizationProvider dateAdapter={AdapterDayjs} locale='cs'>
                         <Paper className={'main-' + orientation} square>
                             <div className={'menu-' + orientation}>
-                                <MainMenu clearData={this.clearData} dataReceived={this.dataReceived} pager={pager} lastId={this.state.data.length > 0 ? this.state.data[0].id : -1} />
+                                <MainMenu clearData={this.clearData} dataReceived={this.dataReceived} pager={pager} lastId={this.lastId} />
                                 {afterFilterVertical}
                             </div>
                             <div className={'divider-' + orientation} />

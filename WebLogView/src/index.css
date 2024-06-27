@@ -79,7 +79,7 @@ td {
     vertical-align: top;
 }
 
-.td-time {
+.td-nowrap {
     max-width: unset;
     white-space: nowrap;
 }
