@@ -56,15 +56,31 @@
     background-color: gray;
 }
 
+.menu {
+    display: flex;
+    padding-top: 0.5rem;
+    padding-bottom: 0.15rem;
+    gap: 0.25rem;
+}
+.menu-compact {
+    display: flex;
+    flex-direction: column;
+    padding-top: 0.5rem;
+    padding-bottom: 0.15rem;
+    gap: 0.25rem;
+}
+
+
 .content {
     height: 100%;
     overflow: auto;
-    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 table {
     width: 100%;
-    position: relative;
+    height: 100%;
     border-spacing: 0;
 }
 
@@ -82,16 +98,6 @@ td {
 .td-nowrap {
     max-width: unset;
     white-space: nowrap;
-}
-
-th {
-    background-color: black;
-    position: sticky;
-    top: 0; /* required for sticky*/
-    -webkit-box-shadow: 0px 2px 0px 0px gray;
-    -moz-box-shadow: 0px 2px 0px 0px gray;
-    box-shadow: 0px 2px 0px 0px gray;
-    padding: 0;
 }
 
 .tr-even{
@@ -135,6 +141,10 @@ tr:hover {
     flex-wrap: wrap;
 }
 
+.flex-gap-025rem {
+    gap: 0.25rem;
+}
+
 .width-100 {
     width: 100%;
 }
@@ -165,6 +175,12 @@ tr:hover {
     vertical-align: middle;
 }
 
+.centered-horizontal {
+    margin-left: auto;
+    margin-right: auto;
+    display: inline-block;
+}
+
 .rounded {
     border-radius: 0.25rem;
 }
@@ -173,10 +189,47 @@ tr:hover {
     white-space: nowrap;
 }
 
+.wrap-all {
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    white-space: nowrap;
+    text-wrap: wrap;
+    width: 100%;
+}
+
+.hline {
+    width: 100vw;
+    background-color: black;
+    height: 2px;
+}
+
 .gray {
     background-color: #303030;
 }
 
 .red {
     background-color: #660000;
+}
+
+.green {
+    color: lightgreen;
+}
+
+.blue {
+    color: lightblue;
+    max-width: 45vw;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.yellow {
+    color : yellow;
+}
+
+.salmon {
+    color: salmon;
+    max-width: 45vw;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }

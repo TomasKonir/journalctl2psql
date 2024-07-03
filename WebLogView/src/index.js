@@ -1,11 +1,13 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
+import React from 'react'
+import ReactDOM from 'react-dom'
+import './index.css'
+import App from './App'
 
 var realDisplayVh = window.innerHeight + 'px'
 
 ReactDOM.render(<App />, document.getElementById("root"))
+
+window.isMobile = false;
 
 function init() {
     ReactDOM.render(<App />, document.getElementById("root"))
@@ -14,6 +16,10 @@ function init() {
         realDisplayVh = window.innerHeight * 0.01
         document.documentElement.style.setProperty("--vh", `${realDisplayVh}px`)
         document.getElementById("root").style.height = (realDisplayVh * 100) + "px"
+        if (window.matchMedia("(any-hover: none)").matches) {
+            console.info('mobile')
+            window.isMobile = true
+        }
     }
 
     resizeListener()
